@@ -67,3 +67,14 @@ vcpkg_installed/
 # test output & cache
 Testing/
 .cache/
+*.tlog
+
+# Visual Studio 및 기타 IDE 파일
+# ---------------------------------------------
+.vs/
+*.suo
+*.sln.docstates
+*.user
+*.userosscache
+*.opendb
+*.VC.db
