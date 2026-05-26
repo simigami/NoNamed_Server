@@ -12,7 +12,7 @@
 #include <iomanip>
 #include <mutex>
 
-class Spinlock
+class SpinLock
 {
 public:
 	void lock()
@@ -38,7 +38,40 @@ private:
 	atomic<bool> _locked =false;
 };
 
-Spinlock spinLock;
+class SleepLock
+{
+public:
+	void lock()
+	{
+		// CAS
+		bool expected = false;
+		bool desired = true;
+
+		while(!_locked.compare_exchange_strong(expected, desired))
+		{
+			expected = false;
+
+			// Sleep instead of looping (feat. Cpp11 sleep_for)
+			this_thread::sleep_for(std::chrono::milliseconds(1));
+
+			// Goes to Kernel mode -> Self-Context-Switch
+			this_thread::yield(); 
+		}
+
+		_locked.store(true);
+	}
+
+	void unlock()
+	{
+		_locked.store(false);
+	}
+
+private:
+	atomic<bool> _locked =false;
+};
+
+SpinLock spinLock;
+SleepLock sleepLock;
 mutex m;
 int32 sum = 0;
 
@@ -46,7 +79,7 @@ void Add()
 {
 	for(int i = 0 ; i< 100'000; i++)
 	{
-		lock_guard<Spinlock> g(spinLock);
+		lock_guard<SleepLock> g(sleepLock);
 		sum++;
 	}
 }
@@ -55,7 +88,7 @@ void Sub()
 {
 		for(int i = 0 ; i< 100'000; i++)
 	{
-		lock_guard<Spinlock> g(spinLock);
+		lock_guard<SleepLock> g(sleepLock);
 		sum--;
 	}
 }
