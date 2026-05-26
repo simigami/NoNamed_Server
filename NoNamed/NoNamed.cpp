@@ -8,66 +8,64 @@
 #include <chrono> // Time Comparison
 #include <thread> // Cpp11 Universal Thread Creation
 #include <atomic> // Cpp 11 Universal Atomic Transaction
+#include <vector>
+#include <iomanip>
+#include <mutex>
 
-void HelloThread()
+vector<int32> vec;
+mutex m;
+constexpr int32 SIZE = 100'00;
+
+template <typename T>
+class LockGuard
 {
-	cout << "Hello Thread" << endl;
-}
-
-void HelloThread2(int num)
-{
-	cout << "Hello Thread 2 " << num << endl;
-}
-
-atomic<int32> sum = 0;
-
-void add()
-{
-	for(int32 i =0; i < 100'0000; i++)
+public:
+	LockGuard(T& m)
 	{
-		//sum++; // this is 3 instruction in assembly
-		sum.fetch_add(1); // you can also arithmetic value with this method
-
-		// move eax, dword ptr
-		// inc eax (+= 1)
-		// move dword ptr, eax
+		_mutex = &m;
+		_mutex->lock();
 	}
-}
 
-void sub()
-{
-	for(int32 i =0; i < 100'0000; i++)
+	~LockGuard()
 	{
-		sum--;
+		_mutex->unlock();
+	}
+
+private:
+	T* _mutex;
+};
+
+void Push()
+{
+	for(int i = 0; i < SIZE; ++i)
+	{
+		LockGuard<std::mutex> lockguard(m);
+		vec.push_back(i);
 	}
 }
 
 int main()
 {
-	vector<std::thread> v;
+	std::cout << std::fixed;
+    std::cout << std::setprecision(6);
 
-	auto start = chrono::high_resolution_clock::now();
+	vector<std::thread> vt;
 
-	add();
-	sub();
+	vec.reserve(SIZE * 2);
 
-	auto end = chrono::high_resolution_clock::now();
-	chrono::duration<double, milli> ms_double = end - start;
+	auto start =  chrono::high_resolution_clock::now();
 
-	cout << "sum is : " << sum << endl; // sum is absolutely 0
-	cout << "time is : " << ms_double.count()  << " ms..." << endl;
-
-	start = chrono::high_resolution_clock::now();
-
-	std::thread t1(add);
-	std::thread t2(sub);
+	std::thread t1(Push);
+	std::thread t2(Push);
 
 	t1.join();
 	t2.join();
 
-	end = chrono::high_resolution_clock::now();
-	ms_double = end - start;
+	auto end = chrono::high_resolution_clock::now();
+	auto ms_double = end - start;
 
-	cout << "sum is : " << sum << endl; // sum is usually not 0 (?)
+	double ratio = static_cast<double>(vec.size()) / (SIZE * 2);
+
 	cout << "time is : " << ms_double.count()  << " ms..." << endl;
+	cout << "size of vec is : " << vec.size() << " , expected : " << SIZE * 2 << " , ratio : " << ratio;
 }
