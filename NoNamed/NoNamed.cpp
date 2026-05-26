@@ -12,60 +12,38 @@
 #include <iomanip>
 #include <mutex>
 
-vector<int32> vec;
-mutex m;
-constexpr int32 SIZE = 100'00;
+#include "AccountManager.h"
+#include "UserManager.h"
 
-template <typename T>
-class LockGuard
+void Func1()
 {
-public:
-	LockGuard(T& m)
+	for(int i = 0 ; i< 1000; i++)
 	{
-		_mutex = &m;
-		_mutex->lock();
+		UserManager::Instance()->ProcessSave();
 	}
+}
 
-	~LockGuard()
-	{
-		_mutex->unlock();
-	}
-
-private:
-	T* _mutex;
-};
-
-void Push()
+void Func2()
 {
-	for(int i = 0; i < SIZE; ++i)
+		for(int i = 0 ; i< 1000; i++)
 	{
-		LockGuard<std::mutex> lockguard(m);
-		vec.push_back(i);
+		AccountManager::Instance()->ProcessLogin();
 	}
 }
 
 int main()
 {
-	std::cout << std::fixed;
-    std::cout << std::setprecision(6);
-
-	vector<std::thread> vt;
-
-	vec.reserve(SIZE * 2);
-
-	auto start =  chrono::high_resolution_clock::now();
-
-	std::thread t1(Push);
-	std::thread t2(Push);
+	std::thread t1(Func1);
+	std::thread t2(Func2);
 
 	t1.join();
 	t2.join();
 
-	auto end = chrono::high_resolution_clock::now();
-	auto ms_double = end - start;
+	cout << "JOB DONE!" << endl;
 
-	double ratio = static_cast<double>(vec.size()) / (SIZE * 2);
+	mutex m1, m2;
 
-	cout << "time is : " << ms_double.count()  << " ms..." << endl;
-	cout << "size of vec is : " << vec.size() << " , expected : " << SIZE * 2 << " , ratio : " << ratio;
+	std::lock(m1, m2);
+
+	lock_guard<mutex> g1(m1, std::adopt_lock);
 }
