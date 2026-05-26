@@ -1,0 +1,351 @@
+﻿---
+description: No Named Server Default Rule
+alwaysApply: true
+---
+# Game Server Rules
+
+## Project Goal
+
+This project focuses on building a custom authoritative FPS server.
+
+The server is the core of the project.
+
+Primary goals:
+- Build a high-performance IOCP-based game server
+- Handle authoritative gameplay validation
+- Maintain stable real-time synchronization
+- Support scalable multiplayer simulation
+- Minimize engine dependency
+
+The server must remain fully independent from Unreal Engine.
+
+
+
+# Phase 1 Goal (Primary Focus)
+
+Phase 1 is focused on proving that the server can properly manage a real-time FPS environment.
+
+The initial target is not visual quality.
+
+The target is:
+- synchronization
+- validation
+- stability
+- networking
+- architecture
+- scalability
+
+
+
+# Required Features
+
+## Core Networking
+- IOCP networking
+- Session management
+- Packet dispatcher
+- Packet serialization/deserialization
+- Protobuf integration
+- Connection lifecycle handling
+
+## Gameplay
+- Movement validation
+- Shooting validation
+- Hit validation
+- Health processing
+- Basic collision handling
+- Room-based simulation
+
+## Synchronization
+- Tick-based simulation
+- Snapshot generation
+- Snapshot broadcasting
+- Interpolation support
+- Basic prediction correction
+
+## Concurrency
+- Multithreaded worker structure
+- JobQueue-based processing
+- Thread-safe room handling
+- Minimal lock usage
+
+## Testing
+- CLI server execution
+- Fake client simulation
+- Bot-based stress testing
+- Packet logging
+
+
+
+# Server Authority Rules
+
+The server is always the source of truth.
+
+Clients are never trusted for gameplay state.
+
+## Client Can
+- send input
+- request actions
+- predict temporary movement
+
+## Client Cannot
+- determine final position
+- validate hits
+- apply damage
+- determine weapon state
+- resolve gameplay results
+
+All gameplay decisions must be validated server-side.
+
+
+
+# Architecture Rules
+
+## Keep Systems Independent
+
+Game Server must remain runnable without:
+- Unreal Engine
+- rendering
+- UI
+- external tools
+
+The server should be fully testable through CLI execution alone.
+
+
+
+# Room Ownership Rules
+
+Each room should behave like an isolated simulation unit.
+
+A room should manage:
+- players
+- bots
+- projectiles
+- collision state
+- tick updates
+- job execution
+
+Avoid unnecessary cross-room dependencies.
+
+
+
+# Tick Rules
+
+Gameplay must run on a fixed server tick.
+
+Examples:
+- movement update
+- collision validation
+- projectile update
+- snapshot generation
+
+Do NOT depend on variable frame timing for gameplay logic.
+
+
+
+# Networking Rules
+
+## Prefer Explicit Systems
+
+Use:
+- explicit packet structures
+- explicit serialization
+- deterministic flow
+- predictable ownership
+
+Avoid:
+- hidden state mutation
+- implicit synchronization
+- unclear packet responsibility
+
+
+
+# Validation Rules
+
+All important gameplay actions require validation.
+
+Required validation examples:
+- movement speed
+- teleport detection
+- fire rate
+- hit range
+- invalid packet values
+
+Never trust raw client data.
+
+
+
+# Performance Rules
+
+Always consider:
+- packet throughput
+- tick cost
+- allocation frequency
+- lock contention
+- memory fragmentation
+- thread ownership
+
+Performance is part of the core design.
+
+Do not optimize only after completion.
+
+
+
+# Multithreading Rules
+
+Prefer:
+- ownership-based execution
+- room isolation
+- job queues
+- deterministic processing
+
+Avoid:
+- excessive mutex usage
+- global shared state
+- unclear thread ownership
+
+Thread ownership must always be understandable.
+
+
+
+# Code Style Rules
+
+## Naming
+
+Use clear and understandable names.
+
+Bad:
+```cpp
+DoThing()
+Proc()
+Tmp()
+Calc()
+```
+
+Good:
+```cpp
+HandleMovementPacket()
+ValidateHitResult()
+BroadcastRoomSnapshot()
+```
+
+Avoid abbreviations unless universally understood.
+
+Allowed:
+- HP
+- ID
+- FPS
+- UDP
+- TCP
+- IOCP
+
+Avoid unclear shortened names.
+
+
+
+# Function Rules
+
+## Function Length
+
+Target:
+- Under 30 lines preferred
+- Under 50 lines maximum
+
+Split large logic into smaller responsibilities.
+
+## Single Responsibility
+
+One function should perform one clear task.
+
+Bad:
+```cpp
+UpdatePlayerAndValidateAndBroadcast()
+```
+
+Good:
+```cpp
+UpdatePlayerMovement()
+ValidateMovementState()
+BroadcastSnapshot()
+```
+
+# Class Rules
+
+## Keep Classes Focused
+
+One class should have one responsibility.
+
+Avoid:
+- massive manager classes
+- mixed networking/gameplay/database logic
+- god objects
+
+Prefer:
+- isolated systems
+- explicit ownership
+- predictable flow
+
+
+# Memory Rules
+
+Avoid:
+- unnecessary allocations
+- uncontrolled dynamic memory usage
+- frequent object recreation
+
+Prefer:
+- pooling
+- reusable buffers
+- stable ownership
+- predictable lifetime management
+
+# Debugging Rules
+
+Every important system must be observable.
+
+Required:
+- packet logs
+- room state logs
+- tick timing logs
+- disconnect logs
+- validation failure logs
+
+Synchronization problems must be traceable.
+
+# Scope Control
+
+Do NOT prioritize:
+- web dashboard polish
+- advanced database systems
+- unnecessary tools
+- overengineered abstractions
+
+Prioritize:
+- networking
+- validation
+- synchronization
+- scalability
+- stability
+- debugging
+- performance
+
+# Phase 2 (Brief)
+
+Later phases may include:
+- Auth server
+- Lobby server
+- Matchmaking
+- Redis integration
+- Dashboard systems
+- Reconnect handling
+
+# Phase 3 (Brief)
+
+Future large-scale goals:
+- 1000 room simulation
+- 12000 bot simulation
+- replay systems
+- lag compensation
+- advanced prediction
+- performance profiling
+- packet analysis tools
+- crash recovery systems
