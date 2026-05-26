@@ -12,38 +12,61 @@
 #include <iomanip>
 #include <mutex>
 
-#include "AccountManager.h"
-#include "UserManager.h"
-
-void Func1()
+class Spinlock
 {
-	for(int i = 0 ; i< 1000; i++)
+public:
+	void lock()
 	{
-		UserManager::Instance()->ProcessSave();
+		// CAS
+		bool expected = false;
+		bool desired = true;
+
+		while(!_locked.compare_exchange_strong(expected, desired))
+		{
+			expected = false;
+		}
+
+		_locked.store(true);
+	}
+
+	void unlock()
+	{
+		_locked.store(false);
+	}
+
+private:
+	atomic<bool> _locked =false;
+};
+
+Spinlock spinLock;
+mutex m;
+int32 sum = 0;
+
+void Add()
+{
+	for(int i = 0 ; i< 100'000; i++)
+	{
+		lock_guard<Spinlock> g(spinLock);
+		sum++;
 	}
 }
 
-void Func2()
+void Sub()
 {
-		for(int i = 0 ; i< 1000; i++)
+		for(int i = 0 ; i< 100'000; i++)
 	{
-		AccountManager::Instance()->ProcessLogin();
+		lock_guard<Spinlock> g(spinLock);
+		sum--;
 	}
 }
 
 int main()
 {
-	std::thread t1(Func1);
-	std::thread t2(Func2);
+	std::thread t1(Add);
+	std::thread t2(Sub);
 
 	t1.join();
 	t2.join();
 
-	cout << "JOB DONE!" << endl;
-
-	mutex m1, m2;
-
-	std::lock(m1, m2);
-
-	lock_guard<mutex> g1(m1, std::adopt_lock);
+	cout << "JOB DONE! sum : " << sum << endl;
 }
