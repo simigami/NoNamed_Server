@@ -16,52 +16,51 @@
 
 mutex m;
 queue<int32> q;
-HANDLE handle;
+
+condition_variable cv;
 
 void Producer()
 {
 	while(true)
 	{
-		unique_lock<mutex> lock(m);
-		q.push(100);
+		// 1. Get a Lock
+		// 2. Modify condition_variable value
+		// 3. Release a Lock
+		// 4. Send Another thread by condition_variable
+		{
+			unique_lock<mutex> lock(m);
+			q.push(100);
+		}
 
-		::SetEvent(handle); // 4. Gives Event -> set handle as signaled
-
-		this_thread::sleep_for(100ms); // 1. What happens if 100ms turns to 10000000ms? 
-
-		// 7. if sleep for 10000000ms,  WaitForSingleObject will stop the t2
+		cv.notify_one(); // A. if theres a WAIT thread. READY one thread.
 	}
 }
 
 void Consumer()
 {
-	while(true) // 2. Consumer will run loop even when theres no elements inside a queue
+	while(true)
 	{
-		::WaitForSingleObject(handle, INFINITE); // 5. Kernel will decide whether to go, or stop the t2
-
-		// 6. Kernel will change handle as non-signaled if go
-
 		unique_lock<mutex> lock(m);
-		if(!q.empty())
-		{
-			int32 data = q.front();
-			q.pop();
-			cout << data << endl;
-		}
+
+		// 1. Get a Lock
+		// 2. Check Condition by Lambda Function
+		// 3. If Condition Verified, go
+		// 4. If not Verified, Release a Lock and WAIT
+		cv.wait(lock, [](){ return q.empty() == false; });
+
+		int32 data = q.front();
+		q.pop();
+		cout << data << endl;
 	}
 }
 
 int main()
 {
-	handle = ::CreateEvent(NULL, FALSE, FALSE, NULL); // 3. Make a event to stop t2 when queue has no elements
-
 	thread t1(Producer); 
 	thread t2(Consumer);
 
 	t1.join();
 	t2.join();
-
-	::CloseHandle(handle); // Close Event
 
 	cout << "JOB DONE ! " << endl;
 }
