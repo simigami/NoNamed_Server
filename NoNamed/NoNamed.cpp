@@ -11,56 +11,82 @@
 #include <vector>
 #include <iomanip>
 #include <mutex>
+#include <future>
 
-#include "Windows.h"
-
-mutex m;
-queue<int32> q;
-
-condition_variable cv;
-
-void Producer()
+class Knight
 {
-	while(true)
-	{
-		// 1. Get a Lock
-		// 2. Modify condition_variable value
-		// 3. Release a Lock
-		// 4. Send Another thread by condition_variable
-		{
-			unique_lock<mutex> lock(m);
-			q.push(100);
-		}
+public:
+	Knight() { Hp = 100; };
+	int32 GetHp() { return Hp; };
 
-		cv.notify_one(); // A. if theres a WAIT thread. READY one thread.
+private:
+	int32 Hp;
+};
+
+int64 Calculate()
+{
+	int64 sum = 0;
+	for(int i = 0 ; i <= 1'000'000; ++i)
+	{
+		sum += i;
 	}
+
+	return sum;
 }
 
-void Consumer()
+void PromiseWorker(std::promise<string>&& promise)
 {
-	while(true)
-	{
-		unique_lock<mutex> lock(m);
+	promise.set_value("Secret Message : ");
+}
 
-		// 1. Get a Lock
-		// 2. Check Condition by Lambda Function
-		// 3. If Condition Verified, go
-		// 4. If not Verified, Release a Lock and WAIT
-		cv.wait(lock, [](){ return q.empty() == false; });
-
-		int32 data = q.front();
-		q.pop();
-		cout << data << endl;
-	}
+void TaskWorker(std::packaged_task<int64(void)>&& task)
+{
+	task();
 }
 
 int main()
 {
-	thread t1(Producer); 
-	thread t2(Consumer);
+	// Sync Calc
+	int64 sum = Calculate();
+	cout << "SYNC JOB DONE ! sum : " << sum << endl;
 
-	t1.join();
-	t2.join();
 
-	cout << "JOB DONE ! " << endl;
+	// Async Calc
+	{
+		// 1. Deferred future = Execute with lazy-evaluation (Single-Thread)
+		// 2. Async future = Execute with new thread (Multi-Thread)
+		// 3. Both future = Execute more efficient way (Any)
+		Knight k;
+		std::future<int32> future = std::async(std::launch::async, &Knight::GetHp, k);
+
+		// TODO
+
+		cout << "ASYNC JOB DONE ! hp : " << future.get() << endl;
+	}
+
+	// Promise
+	{
+		// Promise a future to return sth
+		std::promise<string> promise;
+		std::future<string> future = promise.get_future(); // 1:1 Sync with Promise
+
+		// future resides in main thread, while promise is moved to t1
+		thread t1(PromiseWorker, std::move(promise));
+
+		t1.join();
+
+		cout << "ASYNC JOB DONE ! Message : " << future.get() << endl;
+	}
+
+	// Packaged Task
+	{
+		std::packaged_task<int64(void)> task(Calculate);
+		std::future<int64> future = task.get_future();
+
+		std::thread t2(TaskWorker, std::move(task));
+
+		t2.join();
+
+		cout << "ASYNC JOB DONE ! Sum : " << future.get() << endl;
+	}
 }
