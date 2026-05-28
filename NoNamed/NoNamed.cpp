@@ -12,94 +12,56 @@
 #include <iomanip>
 #include <mutex>
 
-class SpinLock
-{
-public:
-	void lock()
-	{
-		// CAS
-		bool expected = false;
-		bool desired = true;
+#include "Windows.h"
 
-		while(!_locked.compare_exchange_strong(expected, desired))
-		{
-			expected = false;
-		}
-
-		_locked.store(true);
-	}
-
-	void unlock()
-	{
-		_locked.store(false);
-	}
-
-private:
-	atomic<bool> _locked =false;
-};
-
-class SleepLock
-{
-public:
-	void lock()
-	{
-		// CAS
-		bool expected = false;
-		bool desired = true;
-
-		while(!_locked.compare_exchange_strong(expected, desired))
-		{
-			expected = false;
-
-			// Sleep instead of looping (feat. Cpp11 sleep_for)
-			this_thread::sleep_for(std::chrono::milliseconds(1));
-
-			// Goes to Kernel mode -> Self-Context-Switch
-			this_thread::yield(); 
-		}
-
-		_locked.store(true);
-	}
-
-	void unlock()
-	{
-		_locked.store(false);
-	}
-
-private:
-	atomic<bool> _locked =false;
-};
-
-SpinLock spinLock;
-SleepLock sleepLock;
 mutex m;
-int32 sum = 0;
+queue<int32> q;
+HANDLE handle;
 
-void Add()
+void Producer()
 {
-	for(int i = 0 ; i< 100'000; i++)
+	while(true)
 	{
-		lock_guard<SleepLock> g(sleepLock);
-		sum++;
+		unique_lock<mutex> lock(m);
+		q.push(100);
+
+		::SetEvent(handle); // 4. Gives Event -> set handle as signaled
+
+		this_thread::sleep_for(100ms); // 1. What happens if 100ms turns to 10000000ms? 
+
+		// 7. if sleep for 10000000ms,  WaitForSingleObject will stop the t2
 	}
 }
 
-void Sub()
+void Consumer()
 {
-		for(int i = 0 ; i< 100'000; i++)
+	while(true) // 2. Consumer will run loop even when theres no elements inside a queue
 	{
-		lock_guard<SleepLock> g(sleepLock);
-		sum--;
+		::WaitForSingleObject(handle, INFINITE); // 5. Kernel will decide whether to go, or stop the t2
+
+		// 6. Kernel will change handle as non-signaled if go
+
+		unique_lock<mutex> lock(m);
+		if(!q.empty())
+		{
+			int32 data = q.front();
+			q.pop();
+			cout << data << endl;
+		}
 	}
 }
 
 int main()
 {
-	std::thread t1(Add);
-	std::thread t2(Sub);
+	handle = ::CreateEvent(NULL, FALSE, FALSE, NULL); // 3. Make a event to stop t2 when queue has no elements
+
+	thread t1(Producer); 
+	thread t2(Consumer);
 
 	t1.join();
 	t2.join();
 
-	cout << "JOB DONE! sum : " << sum << endl;
+	::CloseHandle(handle); // Close Event
+
+	cout << "JOB DONE ! " << endl;
 }
