@@ -78,3 +78,8 @@ Testing/
 *.userosscache
 *.opendb
 *.VC.db
+
+# Custom
+.idea/
+*.vcxproj.filters
+*.idb
