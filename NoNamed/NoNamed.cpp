@@ -2,46 +2,84 @@
 #include "CorePch.h"
 #include "NoNamed.h"
 
-#include <thread> // Cpp11 Universal Thread Creation
-#include <iomanip>
-#include <mutex>
+#include <future>
+#include "CoreGlobal.h"
+#include "CoreMacro.h"
+#include "ThreadManager.h"
 
-#include "ConcurrentQueue.h"
-#include "ConcurrentStack.h"
+CoreGlobal Core;
 
-LockQueue<int32> q;
-LockFreeStack<int32> s;
-
-void Push()
+class TestLock
 {
-	while(true)
-	{
-		int32 value = rand() % 100;
-		s.Push(value);
+    USE_LOCK;
+    
+public:
+    int32 TestRead()
+    {
+        READ_LOCK;
+        
+        if (_queue.empty())
+        {
+            return -1;
+        }
+        
+        return _queue.front();
+    }
+    
+    void TestPush()
+    {
+        WRITE_LOCK;
+        
+        _queue.push(rand() % 1000);
+    }    
+    
+    void TestPop()
+    {
+        WRITE_LOCK;
+        
+        if (!_queue.empty())
+        {
+            _queue.pop();
+        }
+    }
+    
+private:
+    queue<int32> _queue;
+};
 
-		// this_thread::sleep_for(10ms);
-	}
+TestLock test;
+
+void ThreadWrite()
+{
+    while (true)
+    {
+        test.TestPush();
+        this_thread::sleep_for(1ms);
+        test.TestPop();
+    }
 }
 
-void Pop()
+void ThreadRead()
 {
-	while(true)
-	{
-		int32 data = 0;
-		if (s.TryPop(data))
-		{
-			cout << data << endl;
-		}
-	}
+    while (true)
+    {
+        int32 value = test.TestRead();
+        cout << "VALUE IS : " << value << endl;
+        this_thread::sleep_for(1ms);
+    }
 }
 
 int main()
 {
-	thread t1(Push);
-	thread t2(Pop);
-	thread t3(Pop);
-
-	t1.join();
-	t2.join();
-	t3.join();
+    for (int32 i = 0; i < 3; ++i)
+    {
+        GThreadManager->Launch(ThreadWrite);
+    }
+    
+    for (int32 i = 0; i < 2; ++i)
+    {
+        GThreadManager->Launch(ThreadRead);
+    }
+    
+    GThreadManager->Join();
 }
