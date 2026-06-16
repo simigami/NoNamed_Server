@@ -1,85 +1,67 @@
 ﻿#include "pch.h"
 #include "CorePch.h"
 #include "NoNamed.h"
-
-#include <future>
 #include "CoreGlobal.h"
-#include "CoreMacro.h"
+#include "RefCounting.h"
 #include "ThreadManager.h"
 
-CoreGlobal Core;
-
-class TestLock
+class Wraith : public RefCountable
 {
-    USE_LOCK;
-    
 public:
-    int32 TestRead()
+    int32 _hp = 150;
+    int32 _posX = 0;
+    int32 _posY = 0;
+};
+
+using WraithRef = TSharedPtr<Wraith>; 
+
+class Missile : public RefCountable
+{
+public:
+    void SetTarget(WraithRef target)
     {
-        READ_LOCK;
-        
-        if (_queue.empty())
-        {
-            return -1;
-        }
-        
-        return _queue.front();
+        _target = target;
     }
     
-    void TestPush()
+    bool Update()
     {
-        WRITE_LOCK;
+        if (_target == nullptr) return true;
         
-        _queue.push(rand() % 1000);
-    }    
-    
-    void TestPop()
-    {
-        WRITE_LOCK;
+        int posX = _target->_posX;
+        int posY = _target->_posY;
         
-        if (!_queue.empty())
+        if (_target->_hp == 0)
         {
-            _queue.pop();
+            _target = nullptr;
+            return true;
         }
+        
+        // TODO : Follow
     }
     
 private:
-    queue<int32> _queue;
+    WraithRef _target = nullptr;
 };
 
-TestLock test;
-
-void ThreadWrite()
-{
-    while (true)
-    {
-        test.TestPush();
-        this_thread::sleep_for(1ms);
-        test.TestPop();
-    }
-}
-
-void ThreadRead()
-{
-    while (true)
-    {
-        int32 value = test.TestRead();
-        cout << "VALUE IS : " << value << endl;
-        this_thread::sleep_for(1ms);
-    }
-}
+using MissileRef = TSharedPtr<Missile>; 
 
 int main()
 {
-    for (int32 i = 0; i < 3; ++i)
-    {
-        GThreadManager->Launch(ThreadWrite);
-    }
+    WraithRef wraith(new Wraith());
+    wraith->ReleaseRef();
     
-    for (int32 i = 0; i < 2; ++i)
-    {
-        GThreadManager->Launch(ThreadRead);
-    }
+    MissileRef missile(new Missile());
+    missile->ReleaseRef();
     
-    GThreadManager->Join();
+    missile->SetTarget(wraith);
+    wraith->_hp = 0;
+    wraith = nullptr;
+    
+    while (true)
+    {
+        if (missile)
+        {
+            missile->Update();
+        }
+    }
 }

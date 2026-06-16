@@ -7,6 +7,9 @@
     <Filter Include="Utils">
       <UniqueIdentifier>{142a5dc6-a42a-45b9-b7bf-e424c8ce4bd4}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Learn">
+      <UniqueIdentifier>{d682e466-3dae-47f5-8b7e-038cde5d45cd}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -18,8 +21,12 @@
     <ClInclude Include="AccountManager.h">
       <Filter>Main</Filter>
     </ClInclude>
-    <ClInclude Include="ConcurrentStack.h" />
-    <ClInclude Include="ConcurrentQueue.h" />
+    <ClInclude Include="ConcurrentQueue.h">
+      <Filter>Learn</Filter>
+    </ClInclude>
+    <ClInclude Include="ConcurrentStack.h">
+      <Filter>Learn</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -34,7 +41,11 @@
     <ClCompile Include="UserManager.cpp">
       <Filter>Main</Filter>
     </ClCompile>
-    <ClCompile Include="ConcurrentStack.cpp" />
-    <ClCompile Include="ConcurrentQueue.cpp" />
+    <ClCompile Include="ConcurrentQueue.cpp">
+      <Filter>Learn</Filter>
+    </ClCompile>
+    <ClCompile Include="ConcurrentStack.cpp">
+      <Filter>Learn</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

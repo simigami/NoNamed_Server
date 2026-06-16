@@ -49,142 +49,111 @@ private:
 template<typename T>
 class LockFreeStack
 {
+	struct Node;
+	
+	struct CountNodePtr
+	{
+		int32 externalCount = 1;
+		Node* ptr = nullptr;
+	};
 
 	struct Node
 	{
-		Node(const T& value) : data(value)
+		Node(const T& value) : data(make_shared<T>(value))
 		{
 		}
 
-		T data;
-		Node* next;
+		shared_ptr<T> data;
+		atomic<int32> internalCount = 0;
+		CountNodePtr next;
 	};
 
 public:
-	LockFreeStack() {};
+	LockFreeStack() { };
 
 	LockFreeStack(const LockFreeStack&) = delete;
 	LockFreeStack& operator=(const LockFreeStack&) = delete;
 
 	void Push(const T& value)
 	{
-		Node* newNode = new Node(value);
-		newNode->next = _head;
-
-		// Possible Race Condition, use CAS to protect
-		while(_head.compare_exchange_weak(newNode->next, newNode) == false)
+		// Local
+		CountNodePtr node;
+		node.ptr = new Node(value);
+		node.externalCount = 1;
+		
+		// Possible Race Condition
+		node.ptr->next = _head.load();
+		while (_head.compare_exchange_weak(node.ptr->next, node) == false)
 		{
 		}
 		
-		// this_thread::sleep_for(10ms);
+		this_thread::sleep_for(1ms);
 	}
 
-	bool TryPop(T& value)
+	shared_ptr<T> TryPop()
 	{
-		++_popCount;
-		Node* oldHead = _head;
-	
-		// Possible Race Condition 1, use CAS to protect
-		while (oldHead && _head.compare_exchange_weak(oldHead, oldHead->next) == false)
+		CountNodePtr oldHead = _head;
+		// Declare oldHead is going to use
+		while (true)
 		{
+			// Get Reference RIghts
+			IncreaseHeadCount(oldHead);
 			
-		}
-		if (!oldHead)
-		{
-			--_popCount;
-			return false;
-		}
-		
-		value = oldHead->data;
-		TryDelete(oldHead);
-		
-		// Possible Race Condition 2
-		// delete(oldHead);
-		
-		return true;
-	}
-
-	void WaitPop(T& value)
-	{
-
-	}
-	
-	// 1. 데이터 분리 -> 2. 카운트 체크 -> 3. 나 혼자면 삭제
-	void TryDelete(Node* oldHead)
-	{
-		// Check whether popCnt is 1
-		if (_popCount == 1)
-		{
-			// reference of oldHead is protected due to the CAS in TryPop, So delete oldHead is thread-safe
-			delete oldHead;
-			
-			// Also, try delete in pendingList
-			Node* node = _pendingList.exchange(nullptr);
-			if (--_popCount == 0)
+			// All oldHead below is externalCount == 2, so free to reference
+			Node* ptr = oldHead.ptr;
+			if (ptr == nullptr)
 			{
-				// pop Count is normal, No Race Condition, so delete in pending List
-				DeleteNodes(node);
+				return shared_ptr<T>();
 			}
-			else if (node)
+			else
 			{
-				// Race Condition Occurred, get pending List back
-				// Since we do not know length of _pendingList, it should be List Appneding method
-				MergeToPendingList(node);
+				// Possible Race Condition
+				// Get Ownership Rights
+				if (_head.compare_exchange_strong(oldHead, ptr->next))
+				{
+					// All oldHead below is externalCount == 2, and head is sync!!!
+					shared_ptr<T> res;
+					res.swap(ptr->data);
+					
+					// Ok, thread-safe pop completed => TODO Need Deletion Rights
+					
+					const int32 countIncrease = oldHead.externalCount - 2;
+					if (ptr->internalCount.fetch_add(countIncrease) == -countIncrease)
+					{
+						delete(ptr);
+					}
+					
+					return res;
+				}
+				// oldHead that has Reference Rights but no Ownership should delete ptr
+				else if (ptr->internalCount.fetch_sub(1) == 1)
+				{
+					delete(ptr);
+				}
 			}
+			// Note that fetch function will return prev value, and add or sub after
 		}
-		else
-		{
-			// Race Condition Occurred, give oldHead to pending List
-			MergeToPendingList(oldHead);
-		}
-		
-		// Possible Scenario is that if Pop Threads is LOT more then Push Threads, (--_popCount == 0) will usually not be executed
-		// So, many node will just keep appends to PendingList that will result in memory overflow.
 	}
 	
-	
-	void MergeToPendingList(Node* first, Node* last)
+	void IncreaseHeadCount(CountNodePtr& oldCounter)
 	{
-		// Possible RaceCondition, Protected by CAS
-		last->next = _pendingList;
-		
-		while (_pendingList.compare_exchange_weak(last->next, first))
+		while (true)
 		{
+			CountNodePtr newCounter = oldCounter;
+			// Possible Race Condition when increasing Count
+			++newCounter.externalCount;
 			
-		}
-	}
-	
-	void MergeToPendingList(Node* node)
-	{
-		Node* last = node;
-		while (last->next)
-		{
-			last = last->next;
-		}
-		MergeToPendingList(node, last);
-	}
-	
-	void MergeOneNode(Node* node)
-	{
-		MergeToPendingList(node, node);
-	}
-	
-	void DeleteNodes(Node* node)
-	{
-		while (node)
-		{
-			Node* next = node->next;
-			delete(node);
-			node = next;
+			// Only the oldHead that has newCounter.externalCount == 2 will break, and other will in loop
+			if (_head.compare_exchange_weak(oldCounter, newCounter))
+			{
+				// Safe here, so sync externalCount in oldHead
+				oldCounter.externalCount = newCounter.externalCount;
+				break;
+			}
 		}
 	}
 
 private:
-	atomic<Node*> _head;
-	
-	// for ref counting
-	atomic<uint32> _popCount{0};
-
-	// for need to delete nodes
-	atomic<Node*> _pendingList;
+	// shared ptr
+	atomic<CountNodePtr> _head;
 };
