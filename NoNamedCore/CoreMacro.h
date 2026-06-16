@@ -8,6 +8,10 @@
 #define WRITE_LOCK_IDX(idx)            WriteLockGuard writeLockGuard_##idx(_locks[idx]);
 #define WRITE_LOCK                           WRITE_LOCK_IDX(0);
 
+// Memory Macro
+#define Xalloc(size)              StompAllocator::Alloc(size)
+#define Xrelease(ptr)           StompAllocator::Release(ptr)
+
 // Logger [ CRASH ] 
 #define CRASH(cause)                                        \
 {                                                                              \

@@ -1,67 +1,84 @@
 ﻿#include "pch.h"
 #include "CorePch.h"
 #include "NoNamed.h"
-#include "CoreGlobal.h"
-#include "RefCounting.h"
+#include "Memory.h"
 #include "ThreadManager.h"
 
-class Wraith : public RefCountable
+// class Knight : public RefCountable
+// {
+// public:
+//     Knight()
+//     {
+//         cout << "Knight Created" << endl;
+//     }
+//     
+//     Knight(int32 hp)
+//     {
+//         _hp = hp;
+//         cout << "Knight Created With hp " << _hp << endl;
+//     }
+//     
+//     ~Knight()
+//     {
+//         cout << "Knight Destroyed" << endl;
+//     }
+//     
+//     int32 _hp = 100;
+//     
+// private:
+//     Knight* _target = nullptr;
+// };
+// using KnightRef = TSharedPtr<Knight>;
+
+class Player
 {
 public:
-    int32 _hp = 150;
-    int32 _posX = 0;
-    int32 _posY = 0;
+    Player() {}
+    virtual ~Player() {}
 };
 
-using WraithRef = TSharedPtr<Wraith>; 
-
-class Missile : public RefCountable
+class Knight : public Player
 {
 public:
-    void SetTarget(WraithRef target)
+    Knight()
     {
-        _target = target;
+        cout << "Knight()" << endl;
     }
-    
-    bool Update()
-    {
-        if (_target == nullptr) return true;
-        
-        int posX = _target->_posX;
-        int posY = _target->_posY;
-        
-        if (_target->_hp == 0)
-        {
-            _target = nullptr;
-            return true;
-        }
-        
-        // TODO : Follow
-    }
-    
-private:
-    WraithRef _target = nullptr;
-};
 
-using MissileRef = TSharedPtr<Missile>; 
+    Knight(int32 hp) : _hp(hp)
+    {
+        cout << "Knight(hp)" << endl;
+    }
+
+    ~Knight()
+    {
+        cout << "~Knight()" << endl;
+    }
+
+    int32 _hp = 100;
+    int32 _mp = 10;
+};
 
 int main()
 {
-    WraithRef wraith(new Wraith());
-    wraith->ReleaseRef();
+    // KnightRef k1 = new Knight();
+    // k1->ReleaseRef();
+    //
+    // KnightRef k2 = new Knight();
+    // k2->ReleaseRef();
     
-    MissileRef missile(new Missile());
-    missile->ReleaseRef();
+    // shared_ptr has 2 elems, [Knight Pointer1] [Ref Counting Class 1]
+    // shared_ptr<Knight> spr1(new Knight());
+    Knight* knight = xnew<Knight>(100);
+    xdelete(knight);
+
+    // // [Knight Pointer Point at spr1] [Ref Counting Class 2]
+    // shared_ptr<Knight> spr2(spr1);
+    //
+    // // [Knight Pointer Pointer | Ref Counting Class 3]
+    // shared_ptr<Knight> spr3 = make_shared<Knight>();
     
-    missile->SetTarget(wraith);
-    wraith->_hp = 0;
-    wraith = nullptr;
-    
-    while (true)
-    {
-        if (missile)
-        {
-            missile->Update();
-        }
-    }
+    Vector<Knight> v(1024);
+    Map<int32, Knight> m;
+    m[100] = Knight(100);
 }

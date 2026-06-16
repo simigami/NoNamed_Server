@@ -80,6 +80,7 @@ Testing/
 *.VC.db
 
 # Custom
+*.idb
 .idea/
-*.vcxproj.filters
+*.vcxproj.*
 *.idb
