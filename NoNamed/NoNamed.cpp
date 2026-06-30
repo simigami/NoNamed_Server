@@ -1,84 +1,70 @@
 ﻿#include "pch.h"
 #include "CorePch.h"
 #include "NoNamed.h"
-#include "Memory.h"
+#include "LockFreeStack.h"
 #include "ThreadManager.h"
 
-// class Knight : public RefCountable
-// {
-// public:
-//     Knight()
-//     {
-//         cout << "Knight Created" << endl;
-//     }
-//     
-//     Knight(int32 hp)
-//     {
-//         _hp = hp;
-//         cout << "Knight Created With hp " << _hp << endl;
-//     }
-//     
-//     ~Knight()
-//     {
-//         cout << "Knight Destroyed" << endl;
-//     }
-//     
-//     int32 _hp = 100;
-//     
-// private:
-//     Knight* _target = nullptr;
-// };
-// using KnightRef = TSharedPtr<Knight>;
+static CoreGlobal GCoreGlobal;
 
-class Player
+DECLSPEC_ALIGN(16)
+class Data // : public SListEntry
 {
 public:
-    Player() {}
-    virtual ~Player() {}
+    Data() : _entry(), _hp(rand() % 1000), _mp(rand() % 1000)
+    {
+    }
+
+    SListEntry _entry;
+    
+    int64 _hp;
+    int64 _mp;
 };
 
-class Knight : public Player
-{
-public:
-    Knight()
-    {
-        cout << "Knight()" << endl;
-    }
-
-    Knight(int32 hp) : _hp(hp)
-    {
-        cout << "Knight(hp)" << endl;
-    }
-
-    ~Knight()
-    {
-        cout << "~Knight()" << endl;
-    }
-
-    int32 _hp = 100;
-    int32 _mp = 10;
-};
+SListHeader* GHeader;
 
 int main()
 {
-    // KnightRef k1 = new Knight();
-    // k1->ReleaseRef();
-    //
-    // KnightRef k2 = new Knight();
-    // k2->ReleaseRef();
+    GHeader = new SListHeader();
+    ASSERT_CRASH((uint64)GHeader % 16 == 0, "GHeader is not 16 byte aligned!");
+    InitalizeHead(GHeader);
     
-    // shared_ptr has 2 elems, [Knight Pointer1] [Ref Counting Class 1]
-    // shared_ptr<Knight> spr1(new Knight());
-    Knight* knight = xnew<Knight>(100);
-    xdelete(knight);
-
-    // // [Knight Pointer Point at spr1] [Ref Counting Class 2]
-    // shared_ptr<Knight> spr2(spr1);
-    //
-    // // [Knight Pointer Pointer | Ref Counting Class 3]
-    // shared_ptr<Knight> spr3 = make_shared<Knight>();
+    for (int i = 0; i < 15; i++)
+    {
+        GThreadManager->Launch([]()
+        {
+            while (true)
+            {
+                Data* data = new Data();
+                ASSERT_CRASH((uint64)data % 16 == 0, "Data is not 16 byte aligned!");
+                
+                PushEntryList(GHeader, (SListEntry*)data);
+                this_thread::sleep_for(chrono::milliseconds(10));
+            }
+        });
+    }
     
-    Vector<Knight> v(1024);
-    Map<int32, Knight> m;
-    m[100] = Knight(100);
+    for (int i = 0; i < 2; i++)
+    {
+        GThreadManager->Launch([]()
+        {
+            while (true)
+            {
+                Data* pop = nullptr;
+                pop = (Data*)PopEntryList(GHeader);
+                
+                if (pop)
+                {
+                    cout << pop->_hp << " " << pop->_mp << endl;
+                    delete(pop);
+                }
+                else
+                {
+                    cout << "NULL" << endl;
+                    this_thread::sleep_for(chrono::milliseconds(10));
+                }
+            }
+        });
+    }
+    
+    GThreadManager->Join();
 }

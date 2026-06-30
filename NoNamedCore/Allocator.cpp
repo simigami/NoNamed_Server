@@ -1,6 +1,8 @@
 ﻿#include "pch.h"
 #include "Allocator.h"
 
+#include "Memory.h"
+
 // Base Allocator
 void* BaseAllocator::Alloc(int32 size)
 {
@@ -31,6 +33,16 @@ void StompAllocator::Release(void* ptr)
     // This need gradnuality of OS Page system align with 0x10000
     const int64 base = address - (address % PAGE_SIZE);
     ::VirtualFree(reinterpret_cast<void*>(base), 0, MEM_RELEASE);
+}
+
+void* PoolAllocator::Alloc(int32 size)
+{
+    return GMemory->Allocate(size);
+}
+
+void PoolAllocator::Release(void* ptr)
+{
+    GMemory->Release(ptr);
 }
 
 // STL Allocator
