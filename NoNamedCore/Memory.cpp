@@ -64,7 +64,7 @@ void* MemoryManager::Allocate(int32 size) const
     if (allocSize > MAX_ALLOC_SIZE)
     {
         // default new
-        header = reinterpret_cast<MemoryHeader*>(::malloc(allocSize));
+        header = reinterpret_cast<MemoryHeader*>(::_aligned_malloc(allocSize, SLIST_ALIGNMENT));
     }
     else
     {
@@ -84,7 +84,7 @@ void MemoryManager::Release(void* ptr) const
     
     if (allocSize > MAX_ALLOC_SIZE)
     {
-        ::free(header);
+        ::_aligned_free(header);
     }
     else
     {
