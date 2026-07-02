@@ -61,6 +61,10 @@ void* MemoryManager::Allocate(int32 size) const
     
     const int32 allocSize = size + sizeof(MemoryHeader);
     
+#ifdef _STOMP
+    header = reinterpret_cast<MemoryHeader*>(::StompAllocator::Alloc(allocSize));
+    
+#else
     if (allocSize > MAX_ALLOC_SIZE)
     {
         // default new
@@ -71,14 +75,17 @@ void* MemoryManager::Allocate(int32 size) const
         // get from pool
         header = _pooltable[allocSize]->Pop();
     }
-    
+
+#endif
     return MemoryHeader::AttachHeader(header, size);
 }
 
 void MemoryManager::Release(void* ptr) const
 {
     MemoryHeader* header = MemoryHeader::DetachHeader(ptr);
-    
+#ifdef _STOMP
+    StompAllocator::Release(header);
+#else
     const int32 allocSize = header->allocSize;
     ASSERT_CRASH(allocSize > 0);
     
@@ -91,4 +98,5 @@ void MemoryManager::Release(void* ptr) const
         // return to pool
         _pooltable[allocSize]->Push(header);
     }
+#endif
 }

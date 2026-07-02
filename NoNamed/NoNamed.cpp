@@ -4,7 +4,7 @@
 #include "Memory.h"
 #include "ThreadManager.h"
 
-// static CoreGlobal GCoreGlobal;
+static CoreGlobal GCoreGlobal;
 
 // DECLSPEC_ALIGN(16)
 // class Data // : public SListEntry
@@ -26,6 +26,12 @@ public:
     int32 _hp = rand() % 1000;
 };
 
+class Monster
+{
+public:
+    int64 _id = 0;
+};
+
 SLIST_HEADER* GHeader;
 
 int main()
@@ -33,6 +39,21 @@ int main()
     GHeader = new SLIST_HEADER();
     ASSERT_CRASH((uint64)GHeader % 16 == 0, "GHeader is not 16 byte aligned!");
     ::InitializeSListHead(GHeader);
+    
+    Knight* knights[100];
+    for (int i = 0; i < 100; i++)
+    {
+        knights[i] = ObjectPool<Knight>::Pop();
+    }
+    
+    for (int i = 0; i < 100; i++)
+    {
+        ObjectPool<Knight>::Push(knights[i]);
+        knights[i] = nullptr;
+    }
+    
+    shared_ptr<Knight> sptr = ObjectPool<Knight>::MakeShared();
+    shared_ptr<Knight> mptr = MakeShared<Knight>();
     
     for (int i = 0; i < 15; i++)
     {

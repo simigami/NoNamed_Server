@@ -9,8 +9,8 @@
 #define WRITE_LOCK                           WRITE_LOCK_IDX(0);
 
 // Memory Macro
-#define Xalloc(size)              PoolAllocator::Alloc(size)
-#define Xrelease(ptr)           PoolAllocator::Release(ptr)
+// #define Xalloc(size)              PoolAllocator::Alloc(size)
+// #define Xrelease(ptr)           PoolAllocator::Release(ptr)
 
 // Logger [ CRASH ] 
 #define CRASH(cause)                                        \
